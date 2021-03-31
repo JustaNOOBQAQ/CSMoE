@@ -1,24 +1,29 @@
 project(csmoe)
-cmake_minimum_required(VERSION  2.8.0)
+cmake_minimum_required(VERSION  3.10.2)
 
 # Install custom module path
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
-option(XASH_STATIC_GAMELIB "Build static game library" ON)
-
 option(XASH_DEDICATED "Enable dedicated build. Servers must choose this." OFF) # Servers must choose this
 
-option(XASH_PCH "Enable PCH support." ON)
+if(${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.16.0")
+	option(XASH_PCH "Enable PCH support." OFF)
+endif()
 
 option(XASH_VCPKG "Enable VCPKG support." OFF)
 
-if(XASH_PCH)
-	set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/CMakePCHCompiler/")
-	include(CMakePCHCompiler)
+if(XASH_DEDICATED)
+	set(XASH_SDL  OFF) # Dedicated servers still can use SDL
+	set(XASH_STATIC_GAMELIB OFF)
+else()
+	option(XASH_SDL "Enable SDL." ON)
+	option(XASH_STATIC_GAMELIB "Build static game library" ON)
 endif()
 
-if(XASH_PCH AND XASH_VCPKG)
-	message(FATAL_ERROR "XASH_PCH and XASH_VCPKG are not compatible")
+if(XASH_PCH)
+	if(${CMAKE_VERSION} VERSION_LESS "3.16.0")
+		message(FATAL_ERROR "PCH is not supported. Please update to CMake 3.16 or higher.")
+	endif()
 endif()
 
 if(XASH_STATIC_GAMELIB)
@@ -33,21 +38,10 @@ endif()
 
 if (APPLE OR ANDROID)
 	add_compile_options(-Wall -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-invalid-offsetof)
-	set (CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g")
-	set (CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
-	set (CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -Os")
-	set (CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O3 -g")
 elseif(MSVC)
-	set (CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Od")
-	set (CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Ox")
-	set (CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -O1")
-	set (CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -O1")
+
 else()
 	add_compile_options( -Wall -Wextra -Wno-unused-parameter -Wl,--no-undefined )
-	set (CMAKE_C_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb")
-	set (CMAKE_C_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE}  -O3")
-	set (CMAKE_C_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL} -Os")
-	set (CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -ggdb -O3")
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -120,7 +114,6 @@ else()
 endif()
 
 set(XASH_BUILD_COMMIT "${CMAKE_BUILD_POSTFIX}")
-set(SDL_SHARED true)
 set(XASH_LIBDL true)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -133,7 +126,7 @@ if(XASH_IMGUI)
 		target_link_libraries(imgui INTERFACE imgui::imgui)
 	else()
 		set(IMGUI_SRC
-	#			imgui/imgui_demo.cpp
+				imgui/imgui_demo.cpp
 				imgui/imgui_draw.cpp
 				imgui/imgui_widgets.cpp
 				imgui/imgui.cpp)
@@ -150,9 +143,43 @@ if(XASH_IMGUI)
 	target_link_libraries(imgui_ext PUBLIC imgui)
 endif()
 
+if(XASH_SDL)
+	add_library(sdl2 INTERFACE)
+	if(XASH_VCPKG)
+		find_package(SDL2 CONFIG REQUIRED)
+		target_link_libraries(sdl2 INTERFACE SDL2::SDL2)
+	elseif(IOS)
+		target_include_directories(sdl2 INTERFACE "${CMAKE_SOURCE_DIR}/SDL2/include")
+	else()
+		find_package(SDL2 QUIET)
+
+		if(SDL2_FOUND)
+			target_link_libraries(sdl2 INTERFACE ${SDL2_LIBRARY})
+			target_include_directories(sdl2 INTERFACE ${SDL2_INCLUDE_DIR})
+			if(MSVC)
+				string(REGEX REPLACE "lib$" "dll" SDL2_DLL "${SDL2_LIBRARY}")
+				install(FILES ${SDL2_DLL} DESTINATION "." OPTIONAL)
+			endif()
+		else()
+			if(MSVC)
+				add_definitions(-D_ftol2_sse=SDL_ftol2_sse) # fix x86 compile
+			endif()
+			set(DIRECTX OFF CACHE BOOL "" FORCE) # win10 arm dont have dx8
+			add_subdirectory(SDL2 EXCLUDE_FROM_ALL)
+			target_link_libraries(sdl2 INTERFACE SDL2-static)
+		endif()
+	endif()
+
+endif()
+
+add_library(qrcode INTERFACE)
+target_sources(qrcode INTERFACE ${CMAKE_SOURCE_DIR}/3rdparty/QRCode/src/qrcode.c)
+target_include_directories(qrcode INTERFACE ${CMAKE_SOURCE_DIR}/3rdparty/QRCode/src)
+
 if(NOT XASH_DEDICATED)
 	ADD_SUBDIRECTORY(cl_dll)
 	ADD_SUBDIRECTORY(mainui_cpp)
+#	ADD_SUBDIRECTORY(hymenu)
 endif()
 ADD_SUBDIRECTORY(dlls)
 ADD_SUBDIRECTORY(engine)

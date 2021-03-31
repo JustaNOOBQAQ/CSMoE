@@ -51,6 +51,18 @@ void R_ChangeDisplaySettingsFast( int width, int height );
 
 void *SDL_GetVideoDevice( void );
 
+static void SDLCALL GL_GetDrawableSize(SDL_Window* window, int* w, int* h)
+{
+#ifdef XASH_QINDIEGL
+	//return SDL_GetWindowSize(window, w, h);
+	GLint params[4]; pglGetIntegerv(GL_VIEWPORT, params);
+	*w = params[2];
+	*h = params[3];
+#else
+	return SDL_GL_GetDrawableSize(window, w, h);
+#endif
+}
+
 #if 0
 #ifdef _WIN32
 #define XASH_SDL_WINDOW_RECREATE
@@ -99,7 +111,7 @@ qboolean VID_SetScreenResolution( int width, int height )
 	SDL_ShowWindow( host.hWnd );
 	SDL_SetWindowSize( host.hWnd, got.w, got.h );
 
-	SDL_GL_GetDrawableSize( host.hWnd, &got.w, &got.h );
+	GL_GetDrawableSize( host.hWnd, &got.w, &got.h );
 
 	R_ChangeDisplaySettingsFast( got.w, got.h );
 	SDL_HideWindow( fakewnd );
@@ -153,7 +165,7 @@ qboolean VID_SetScreenResolution( int width, int height )
 	{
 		SDL_DestroyWindow( host.hWnd );
 		host.hWnd = SDL_CreateWindow(wndname, 0, 0, width, height, wndFlags | SDL_WINDOW_OPENGL | SDL_WINDOW_SHOWN | SDL_WINDOW_BORDERLESS | SDL_WINDOW_INPUT_GRABBED );
-		SDL_GL_MakeCurrent( host.hWnd, glw_state.context );
+		GL_UpdateContext(  );
 		recreate = false;
 	}
 #endif
@@ -168,7 +180,7 @@ qboolean VID_SetScreenResolution( int width, int height )
 	SDL_SetWindowGrab( host.hWnd, SDL_TRUE );
 	SDL_SetWindowSize( host.hWnd, got.w, got.h );
 
-	SDL_GL_GetDrawableSize( host.hWnd, &got.w, &got.h );
+	GL_GetDrawableSize( host.hWnd, &got.w, &got.h );
 
 	R_ChangeDisplaySettingsFast( got.w, got.h );
 	return true;
@@ -259,11 +271,11 @@ qboolean VID_CreateWindow( int width, int height, qboolean fullscreen )
 	{
 		VID_RestoreScreenResolution();
 	}
-
+#if 0
 #if defined(_WIN32) && !defined(XASH_64BIT) && !defined( XASH_WINRT ) // ICO support only for Win32
 	if( FS_FileExists( GI->iconpath, true ) )
 	{
-		HICON ico;
+		HICON ico = NULL;
 		char	localPath[MAX_PATH];
 
 		Q_snprintf( localPath, sizeof( localPath ), "%s/%s", GI->gamefolder, GI->iconpath );
@@ -310,6 +322,7 @@ qboolean VID_CreateWindow( int width, int height, qboolean fullscreen )
 		}
 #endif
 	}
+#endif
 
 	SDL_ShowWindow( host.hWnd );
 	if( !glw_state.initialized )
@@ -327,7 +340,7 @@ qboolean VID_CreateWindow( int width, int height, qboolean fullscreen )
 			return false;		
 	}
 
-	SDL_GL_GetDrawableSize( host.hWnd, &width, &height );
+	GL_GetDrawableSize( host.hWnd, &width, &height );
 	R_ChangeDisplaySettingsFast( width, height );
 
 #if defined(SDL_VIDEO_DRIVER_COCOA)
@@ -455,13 +468,13 @@ rserr_t R_ChangeDisplaySettings( int width, int height, qboolean fullscreen )
 #endif
 		SDL_SetWindowBordered( host.hWnd, true );
 		SDL_SetWindowSize( host.hWnd, width, height );
-		SDL_GL_GetDrawableSize( host.hWnd, &width, &height );
+		GL_GetDrawableSize( host.hWnd, &width, &height );
 		R_ChangeDisplaySettingsFast( width, height );
 	}
 	else
 	{
 		SDL_SetWindowSize( host.hWnd, width, height );
-		SDL_GL_GetDrawableSize( host.hWnd, &width, &height );
+		GL_GetDrawableSize( host.hWnd, &width, &height );
 		R_ChangeDisplaySettingsFast( width, height );
 	}
 
@@ -490,7 +503,7 @@ qboolean VID_SetMode( void )
 	{
 		SDL_DisplayMode mode;
 #if !defined DEFAULT_MODE_WIDTH || !defined DEFAULT_MODE_HEIGHT
-		SDL_GetDesktopDisplayMode( 0, &mode );
+		SDL_GetCurrentDisplayMode( 0, &mode );
 #else
 		mode.w = DEFAULT_MODE_WIDTH;
 		mode.h = DEFAULT_MODE_HEIGHT;
@@ -564,7 +577,8 @@ qboolean VID_GetDPI(float* out)
 		SDL_GetWindowWMInfo(host.hWnd, &wmInfo);
 		{
 			HWND hwnd = wmInfo.info.win.window;
-			int res = GetDpiForWindow(hwnd);
+            float WIN_GetDpiForWindow(HWND hwnd);
+			int res = WIN_GetDpiForWindow(hwnd);
 			if (res)
 			{
 				success = true;

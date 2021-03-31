@@ -20,15 +20,11 @@
 # SOFTWARE.
 #
 
-cmake_minimum_required(VERSION 3.1.3)
+cmake_minimum_required(VERSION 3.10.2)
 
-if(XASH_PCH)
-	project (client CXX CXXPCH)
-else()
-	project (client)
-endif()
+project (client)
 
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 if (APPLE OR ANDROID)
 set (CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -stdlib=libc++")
@@ -254,7 +250,9 @@ set(PM_SRCS
 if(XASH_IMGUI)
 	set(IMGUI_SRCS
 			imgui_cl/imgui_cl_main.cpp
-			imgui_cl/imgui_cl_buy.cpp)
+			imgui_cl/imgui_cl_buy.cpp
+			imgui_cl/imgui_cl_menu.cpp
+	)
 	add_definitions(-DXASH_IMGUI)
 else()
 	set(IMGUI_SRCS )
@@ -346,7 +344,7 @@ add_definitions( -D_CS16CLIENT_ENABLE_GSRC_SUPPORT
 target_link_libraries( ${CLIENT_LIBRARY} ${CMAKE_DL_LIBS} )
 
 if(XASH_IMGUI)
-	target_link_libraries( ${CLIENT_LIBRARY} imgui )
+	target_link_libraries( ${CLIENT_LIBRARY} imgui imgui_ext )
 endif()
 
 if(ANDROID OR IOS)
@@ -371,10 +369,5 @@ if(NOT XASH_STATIC_GAMELIB)
 endif()
 
 if(XASH_PCH)
-	target_precompiled_header(${CLIENT_LIBRARY} stdafx.h)
-	set_target_properties(${CLIENT_LIBRARY} PROPERTIES
-			CXX_STANDARD ${CMAKE_CXX_STANDARD}
-			CXX_STANDARD_REQUIRED YES
-			CXX_EXTENSIONS NO
-			)
+	target_precompile_headers(${CLIENT_LIBRARY} PRIVATE stdafx.h)
 endif()

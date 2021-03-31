@@ -790,12 +790,13 @@ static void GL_SetDefaults( void )
 	GL_FrontFace( 0 );
 
 	R_SetTextureParameters();
-
+#if !defined(XASH_QINDIEGL)
 	pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR );
 	pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR );
 
 	pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
 	pglTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+#endif
 }
 
 /*
@@ -995,6 +996,20 @@ void Win_SetDPIAwareness( void )
 		else MsgDev( D_NOTE, "SetDPIAwareness: Can't load user32.dll\n" );
 	}
 }
+
+float WIN_GetDpiForWindow(HWND hwnd)
+{
+    HMODULE hModule;
+    static UINT (__stdcall *pfnGetDpiForWindow)(HWND hwnd) = NULL;
+
+    if( ( hModule = LoadLibrary( "user32.dll" ) ) ) {
+        if (pfnGetDpiForWindow || (pfnGetDpiForWindow = ( UINT (__stdcall *)(HWND) )(GetProcAddress(hModule, "GetDpiForWindow")))) {
+            return pfnGetDpiForWindow(hwnd);
+        }
+    }
+    return 96.0f;
+}
+
 #endif
 
 /*

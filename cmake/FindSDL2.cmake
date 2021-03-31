@@ -88,18 +88,20 @@ find_path(SDL2_INCLUDE_DIR SDL.h
 	PATHS ${SDL2_SEARCH_PATHS}
 )
 
-if(CMAKE_SIZEOF_VOID_P MATCHES "8")
-	set(SDL2_LIBRARY_PATH_SUFFIXES
-		lib
-		lib/x86_64-linux-gnu
-		lib/x64
-	)
-else()
-	set(SDL2_LIBRARY_PATH_SUFFIXES
-		lib
-		lib/i386-linux-gnu
-		lib/x86
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "AMD64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "x86")
+	if(CMAKE_SIZEOF_VOID_P MATCHES "8")
+		set(SDL2_LIBRARY_PATH_SUFFIXES
+			lib
+			lib/x86_64-linux-gnu
+			lib/x64
 		)
+	else()
+		set(SDL2_LIBRARY_PATH_SUFFIXES
+			lib
+			lib/i386-linux-gnu
+			lib/x86
+			)
+	endif()
 endif()
 
 find_library(SDL2_LIBRARY_TEMP
@@ -115,7 +117,7 @@ if(NOT SDL2_LIBRARY_TEMP AND NOT WIN32)
 		OUTPUT_VARIABLE SDL2_LIBRARY_TEMP
 		OUTPUT_STRIP_TRAILING_WHITESPACE)
 	if(SDL2_CONFIG_RETVAL)
-		message(SEND_ERROR "sdl2-config --libs returned code ${SDL2_CONFIG_RETVAL}. Check that sdl2-config is working.")
+		message(WARNING "sdl2-config --libs returned code ${SDL2_CONFIG_RETVAL}. Check that sdl2-config is working.")
 	endif()
 endif()
 

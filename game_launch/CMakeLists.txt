@@ -31,8 +31,6 @@ set(CMAKE_CXX_STANDARD 14)
 # Otherwise it prints errors in stdin.
 if(XASH_SDL)
 	set(SDL2_BUILDING_EXECUTABLE YES) # Link SDL2main also
-	find_package(SDL2 REQUIRED)
-	include_directories(${SDL2_INCLUDE_DIR})
 	add_definitions(-DXASH_SDL)
 endif()
 
@@ -128,7 +126,11 @@ elseif(APPLE)
 
 	set(CPACK_GENERATOR "DragNDrop")
 	set(CPACK_PACKAGE_VENDOR "MoeMod")
-	set(CPACK_PACKAGE_FILE_NAME "CSMoE-macOS-${CMAKE_SYSTEM_PROCESSOR}")
+	if(CMAKE_OSX_ARCHITECTURES)
+		set(CPACK_PACKAGE_FILE_NAME "CSMoE-macOS-Universal")
+	else()
+		set(CPACK_PACKAGE_FILE_NAME "CSMoE-macOS-${CMAKE_SYSTEM_PROCESSOR}")
+	endif()
 	set(CPACK_DMG_VOLUME_NAME "CSMoE")
 	set(CPACK_DMG_FORMAT "UDBZ") #UDRW UDBZ
 	set(CPACK_DMG_BACKGROUND_IMAGE "${CMAKE_SOURCE_DIR}/cmake/DragNDrop/background.png")
@@ -161,5 +163,5 @@ elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
 endif()
 
 if(XASH_SDL)
-	target_link_libraries(${XASH_LAUNCHER} ${SDL2_LIBRARY})
+	target_link_libraries(${XASH_LAUNCHER} sdl2)
 endif()
